@@ -29,21 +29,19 @@ class Scraper:
 
     def scrape_amazon(self, link: str, stock_word: str):
         html = self.make_request(link, self.headers, None).text
-        soup = self.make_soup(html)
-
+        # soup = self.make_soup(html)
         availability = stock_word in html
-
-        if availability:
-            try:
-                price = ''.join(filter(str.isdigit, soup.find("span", {"class": "a-price-whole"}).text))
-            except AttributeError:
-                try:
-                    price = ''.join(filter(str.isdigit, soup.find("strong", {"class": "priceLarge"}).text))
-                except AttributeError:
-                    price = 0
-        else:
-            price = 0
-        return availability, price
+        # if availability:
+        #     try:
+        #         price = ''.join(filter(str.isdigit, soup.find("span", {"class": "a-price-whole"}).text))
+        #     except AttributeError:
+        #         try:
+        #             price = ''.join(filter(str.isdigit, soup.find("strong", {"class": "priceLarge"}).text))
+        #         except AttributeError:
+        #             price = 0
+        # else:
+        #     price = 0
+        return availability, 0
 
     def scraper_yahoo(self, link: str, stock_word: str):
         html = self.make_request(link, self.headers, None).text
@@ -58,11 +56,10 @@ class Scraper:
 
     def scraper_mercari(self, link: str, stock_word: str):
         headers = {
-            "cookie": "merCtx=%22%22",
             "authority": "api.mercari.jp",
             "accept": "application/json, text/plain, */*",
-            "accept-language": "ru,en-US;q=0.9,en;q=0.8,uk-UA;q=0.7,uk;q=0.6,ru-RU;q=0.5",
-            "dpop": "eyJ0eXAiOiJkcG9wK2p3dCIsImFsZyI6IkVTMjU2IiwiandrIjp7ImNydiI6IlAtMjU2Iiwia3R5IjoiRUMiLCJ4IjoiRjRTbS1xOXA2dUFiQXB1RE9ab0YyTy1BR0RsUWw5REpnTGZZWThhTk10RSIsInkiOiJFTm5RbG5FbjZaZkNwWU5XWXAzR3duWk1TWWhSUko2NVNGNjUxWHdVQno0In19.eyJpYXQiOjE2NjA4MzI5MzgsImp0aSI6ImYzMGY1NjYwLTYzNmEtNDhlNy1iZWVlLWQ5YTEwZTQ5MjhiNCIsImh0dSI6Imh0dHBzOi8vYXBpLm1lcmNhcmkuanAvaXRlbXMvZ2V0IiwiaHRtIjoiR0VUIiwidXVpZCI6ImQ3ZmJkMmRhLTBlZWEtNDgyNS05MDQxLTc5ZDJkMTc2MTNiNSJ9.9__j-5dQ1nMOjY23nWgkQlB2_SobRpRKyN3LO_K4Ks5JQlFbSKlGFkMx-wcWSEGHTybtDszON3OVq6sI_GmmMA",
+            "accept-language": "ja,en-US;q=0.9,en;q=0.8",
+            "authorization": "_ECuFcASKHUEcR1Soz_pS8Whs2Ut8B9lJTU6-DFivK42pKkoKqYHZllXSHuW0jJuOe8e8o4jyBrttFl_hAH28A.dRzdappA4L69JYnUrXDAY4zcskbzVW3SsCDMoH5drg0",
             "origin": "https://jp.mercari.com",
             "referer": "https://jp.mercari.com/",
             "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.0.0 Safari/537.36",

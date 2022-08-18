@@ -19,7 +19,8 @@ class ProductEntry:
         self.app = app
         self.frame = frame
         self._ebay_id = parameters[2]
-
+        self.state = parameters[19]
+        print(self.state)
         self.parameters = parameters
         self.db = db
         self.row = row
@@ -62,7 +63,8 @@ class ProductEntry:
         start_button = tk.Button(self.frame, text='Start', fg='grey', width=14,
                                  command=self.start_product, font=('Arial', 13, 'bold'))
         start_button.grid(row=self.row, column=22)
-        if self.parameters[10]:
+        if self.parameters[19] == '1':
+            print('start disabled')
             start_button.config(state='disabled')
 
     def start_product(self):
@@ -73,7 +75,9 @@ class ProductEntry:
         stop_button = tk.Button(self.frame, text='Stop', fg='grey', width=14,
                                 command=self.stop_product, font=('Arial', 13, 'bold'))
         stop_button.grid(row=self.row, column=23)
-        if not self.parameters[10]:
+        if self.parameters[19] != '1':
+            print('stop disabled')
+
             stop_button.config(state='disabled')
 
     def stop_product(self):
@@ -517,6 +521,7 @@ class DataBaseInterface:
 
     @make_query_wrapper
     def edit_availability_by_ebay_id(self, ebay_id, availability):
+        availability = 1 if availability else 0
         query = f"""UPDATE products SET result = '{availability}' WHERE ebay_id = '{ebay_id}'"""
         self.cursor.execute(query)
 

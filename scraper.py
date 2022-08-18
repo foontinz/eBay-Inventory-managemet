@@ -1,4 +1,3 @@
-import csv
 import time
 from main import DataBaseInterface
 from ebay_utils import refresh_token, set_item_quantity
@@ -23,7 +22,6 @@ websites = {
     "https://www.kosho.or.jp/products/": lambda x, y: scrape_core.scraper_kosho(link=x, stock_word=y),
     "https://item.rakuten.co.jp": lambda x, y: scrape_core.scraper_rakuten(link=x, stock_word=y)
 }
-
 
 while True:
     cur_time = time.time()
