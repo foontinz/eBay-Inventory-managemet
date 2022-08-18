@@ -25,17 +25,6 @@ websites = {
 }
 
 
-def test():
-    with open('test.csv', 'r', encoding='utf-8') as csvfile:
-        datareader = csv.reader(csvfile)
-        for row in datareader:
-            yield websites[f"{''.join(key for key in websites.keys() if row[0].startswith(key))}"](row[0], row[1])
-
-
-[print(x) for x in test()]
-
-
-exit()
 while True:
     cur_time = time.time()
     for product in db.get_all_products():
