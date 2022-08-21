@@ -117,25 +117,25 @@ class ProductEntry(Entry):
                                  command=self.start_product, font=('Arial', 13, 'bold'))
         start_button.grid(row=self.row, column=22)
         if self.parameters[19] == '1':
-            print('start disabled')
             start_button.config(state='disabled')
 
     def start_product(self):
         self.db.start_product_by_id(self._ebay_id)
         self.app.refresh_all_products_window()
+        self.app.refresh_main_window()
 
     def create_stop_btn(self):
         stop_button = tk.Button(self.frame, text='Stop', fg='red', width=14,
                                 command=self.stop_product, font=('Arial', 13, 'bold'))
         stop_button.grid(row=self.row, column=23)
         if self.parameters[19] != '1':
-            print('stop disabled')
 
             stop_button.config(state='disabled')
 
     def stop_product(self):
         self.db.stop_product_by_id(self._ebay_id)
         self.app.refresh_all_products_window()
+        self.app.refresh_main_window()
 
     def delete(self):
         if tk.messagebox.askyesno('Check', 'Delete?'):
@@ -207,7 +207,7 @@ class App:
             self.all_products_window = None
         if identifier == "all_accounts":
             self.all_accounts_window.destroy()
-            self.all_products_window = None
+            self.all_accounts_window = None
 
     def create_login_window(self):
         if not self.main_window:
@@ -249,7 +249,9 @@ class App:
         self.btn_show_all_accounts.place(relx=0.1, rely=0.4, anchor='sw')
 
     def create_all_accounts_window(self):
+        print('out')
         if not self.all_accounts_window:
+            print("in")
             self.all_accounts_window = create_window(720, 985, 'All Accounts', resizable=True)
             self.build_all_accounts_window_widgets()
             self.all_accounts_window.protocol("WM_DELETE_WINDOW", lambda: self.on_closing_window("all_accounts"))
@@ -412,7 +414,6 @@ class App:
                 for widget in self.all_products_window.winfo_children():
                     widget.destroy()
 
-                del self.all_products_window_product_entries
                 self.all_products_window_product_entries = []
 
                 self.build_all_products_window_widgets()
