@@ -4,6 +4,7 @@ import tkinter as tk
 import mysql.connector
 from tkinter import filedialog
 from tkinter import messagebox
+from ebay_utils import EbayTokenCreation
 
 
 def create_window(height, width, title, resizable=False):
@@ -14,31 +15,28 @@ def create_window(height, width, title, resizable=False):
     return window
 
 
-class ProductEntry:
+class Entry:
     def __init__(self, app: "App", db: 'DataBaseInterface', frame, parameters, row):
         self.app = app
         self.frame = frame
-        self._ebay_id = parameters[2]
-        self.state = parameters[19]
-        print(self.state)
-        self.parameters = parameters
+        self._parameters = parameters
         self.db = db
         self.row = row
+
         self.save_button = None
 
         self.entries_collection = []
 
-        self.create_product_entries()
-        self.create_save_button()
+        self.create_entries()
 
-    def create_product_entries(self):
+    def create_entries(self):
         column = 0
         for parameter in self.parameters:
-            self.entries_collection.append(self.create_product_entry(parameter, column))
+            self.entries_collection.append(self.create_entry(parameter, column))
             column += 1
 
-    def create_product_entry(self, value, column, bg_color="White"):
-        entry_temp = tk.Entry(
+    def create_entry(self, value, column, bg_color="White"):
+        entry = tk.Entry(
             self.frame,
             width=18,
             font=('Arial', 12, 'bold'),
@@ -46,21 +44,76 @@ class ProductEntry:
             background=bg_color,
             fg='Black',
             relief=tk.RAISED)
-        entry_temp.insert(1, value)
-        entry_temp.grid(column=column, row=self.row)
-        return entry_temp
+        entry.insert(1, value)
+        entry.grid(column=column, row=self.row)
+        return entry
 
-    def create_save_button(self):
+    def get_all_entries_values(self):
+        return [entry.get() for entry in self.entries_collection]
+
+    def create_save_btn(self, column):
         self.save_button = tk.Button(self.frame, text='Save', fg='grey', width=14,
-                                     command=self.save_product, font=('Arial', 13, 'bold'))
-        self.save_button.grid(row=self.row, column=21)
+                                     command=self.save, font=('Arial', 13, 'bold'))
+        self.save_button.grid(row=self.row, column=column)
 
-    def save_product(self):
+    def save(self):
+        pass
+
+    def create_delete_btn(self, column):
+        delete_button = tk.Button(self.frame, text='Delete', fg='grey', width=14,
+                                  command=self.delete, font=('Arial', 13, 'bold'))
+        delete_button.grid(row=self.row, column=column)
+
+    def delete(self):
+        pass
+
+    @property
+    def parameters(self):
+        return self._parameters
+
+    @parameters.setter
+    def parameters(self, params):
+        self._parameters = params
+
+
+class AccountEntry(Entry):
+    def __init__(self, app: "App", db: 'DataBaseInterface', frame, parameters, row, refresh_token):
+        parameters = parameters[:-1] + (refresh_token,) if refresh_token != '0' else parameters
+
+        super().__init__(app, db, frame, parameters, row)
+
+        self._id = parameters[0]
+        self.create_save_btn(4)
+        self.create_delete_btn(5)
+
+    def save(self):
+        self.db.del_account(self._id)
+        self.db.add_account(self.get_all_entries_values())
+
+    def delete(self):
+        if tk.messagebox.askyesno('Check', 'Delete?'):
+            self.db.del_account(self._id)
+            self.app.refresh_all_accounts_window()
+
+
+class ProductEntry(Entry):
+    def __init__(self, app: "App", db: 'DataBaseInterface', frame, parameters, row):
+        super().__init__(app, db, frame, parameters, row)
+
+        self._ebay_id = parameters[2]
+        self.state = parameters[19]
+
+        self.create_save_btn(21)
+        self.create_delete_btn(24)
+        self.create_start_btn()
+        self.create_stop_btn()
+
+    def save(self):
         self.db.del_product(self._ebay_id)
         self.db.add_product(self.get_all_entries_values())
 
     def create_start_btn(self):
-        start_button = tk.Button(self.frame, text='Start', fg='grey', width=14,
+        start_button = tk.Button(self.frame, text='Start', fg='green', width=14,
                                  command=self.start_product, font=('Arial', 13, 'bold'))
         start_button.grid(row=self.row, column=22)
         if self.parameters[19] == '1':
@@ -72,7 +125,7 @@ class ProductEntry:
         self.app.refresh_all_products_window()
 
     def create_stop_btn(self):
-        stop_button = tk.Button(self.frame, text='Stop', fg='grey', width=14,
+        stop_button = tk.Button(self.frame, text='Stop', fg='red', width=14,
                                 command=self.stop_product, font=('Arial', 13, 'bold'))
         stop_button.grid(row=self.row, column=23)
         if self.parameters[19] != '1':
@@ -84,28 +137,22 @@ class ProductEntry:
         self.db.stop_product_by_id(self._ebay_id)
         self.app.refresh_all_products_window()
 
-    def create_delete_btn(self):
-        delete_button = tk.Button(self.frame, text='Delete', fg='grey', width=14,
-                                  command=self.del_product, font=('Arial', 13, 'bold'))
-        delete_button.grid(row=self.row, column=24)
-
-    def del_product(self):
+    def delete(self):
         if tk.messagebox.askyesno('Check', 'Delete?'):
             self.db.del_product(self._ebay_id)
             self.app.refresh_all_products_window()
             self.app.refresh_main_window()
 
-    def get_all_entries_values(self):
-        return [entry.get() for entry in self.entries_collection]
-
 
 class App:
 
     def __init__(self, db: 'DataBaseInterface'):
+
         self.db = db
         self.login_window = None
         self.main_window = None
         self.all_products_window = None
+        self.all_accounts_window = None
 
         self.login_input = None
         self.pass_input = None
@@ -113,7 +160,8 @@ class App:
         self.btn_start = None
         self.btn_stop = None
         self.btn_upload = None
-        self.btn_show_all = None
+        self.btn_show_all_products = None
+        self.btn_show_all_accounts = None
 
         self.all_products_window_main_frame = None
         self.all_products_window_second_frame = None
@@ -124,6 +172,15 @@ class App:
         self.all_products_window_scrollbar_y = None
         self.all_products_window_product_entries = []
 
+        self.all_accounts_window_main_frame = None
+        self.all_accounts_window_second_frame = None
+        self.all_accounts_window_third_frame = None
+        self.all_accounts_window_canvas = None
+
+        self.all_accounts_window_scrollbar_y = None
+        self.all_accounts_window_scrollbar_x = None
+        self.all_accounts_window_accounts_entries = []
+
         self.user_ids = None
 
         self.create_login_window()
@@ -131,16 +188,12 @@ class App:
     def start_all(self):
         self.db.start_all()
         self.refresh_all_products_window()
-        if not self.db.is_any_state(0):
-            self.btn_stop.config(state='normal')
-            self.btn_start.config(state='disabled')
+        self.refresh_main_window()
 
     def stop_all(self):
         self.db.stop_all()
         self.refresh_all_products_window()
-        if not self.db.is_any_state(1):
-            self.btn_stop.config(state='disabled')
-            self.btn_start.config(state='normal')
+        self.refresh_main_window()
 
     def on_closing_window(self, identifier):
         if identifier == "login":
@@ -151,6 +204,9 @@ class App:
             self.main_window = None
         if identifier == "all_products":
             self.all_products_window.destroy()
+            self.all_products_window = None
+        if identifier == "all_accounts":
+            self.all_accounts_window.destroy()
             self.all_products_window = None
 
     def create_login_window(self):
@@ -185,6 +241,105 @@ class App:
         self.create_stop_button()
         self.create_start_button()
         self.create_all_products_button()
+        self.create_all_accounts_button()
+
+    def create_all_accounts_button(self):
+        self.btn_show_all_accounts = tk.Button(self.main_window, text='Show all accounts', fg='grey',
+                                               command=self.create_all_accounts_window, font=('Arial', 18, 'bold'), )
+        self.btn_show_all_accounts.place(relx=0.1, rely=0.4, anchor='sw')
+
+    def create_all_accounts_window(self):
+        if not self.all_accounts_window:
+            self.all_accounts_window = create_window(720, 985, 'All Accounts', resizable=True)
+            self.build_all_accounts_window_widgets()
+            self.all_accounts_window.protocol("WM_DELETE_WINDOW", lambda: self.on_closing_window("all_accounts"))
+
+    def build_all_accounts_window_main_frame(self):
+        self.all_accounts_window_main_frame = tk.Frame(self.all_accounts_window)
+        self.all_accounts_window_main_frame.pack(fill=tk.BOTH, expand=1)
+
+    def build_all_accounts_window_second_frame(self):
+        self.all_accounts_window_second_frame = tk.Frame(self.all_accounts_window_main_frame)
+        self.all_accounts_window_second_frame.pack(fill=tk.X, side=tk.BOTTOM)
+
+    def build_all_accounts_window_canvas(self):
+        self.all_accounts_window_canvas = tk.Canvas(self.all_accounts_window_main_frame)
+        self.all_accounts_window_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=1)
+
+    def build_all_accounts_window_scrollbar(self):
+        self.all_accounts_window_scrollbar_x = tk.Scrollbar(self.all_accounts_window_second_frame, orient=tk.HORIZONTAL,
+                                                            command=self.all_accounts_window_canvas.xview)
+        self.all_accounts_window_scrollbar_x.pack(side=tk.BOTTOM, fill=tk.X)
+
+        self.all_accounts_window_scrollbar_y = tk.Scrollbar(self.all_accounts_window_main_frame, orient=tk.VERTICAL,
+                                                            command=self.all_accounts_window_canvas.yview)
+        self.all_accounts_window_scrollbar_y.pack(side=tk.RIGHT, fill=tk.Y)
+
+    def configure_all_accounts_window_canvas(self):
+        self.all_accounts_window_canvas.configure(xscrollcommand=self.all_accounts_window_scrollbar_x.set)
+        self.all_accounts_window_canvas.configure(yscrollcommand=self.all_accounts_window_scrollbar_y.set)
+        self.all_accounts_window_canvas.bind('<Configure>', lambda e: self.all_accounts_window_canvas.configure(
+            scrollregion=self.all_accounts_window_canvas.bbox(tk.ALL)))
+
+    def create_all_accounts_window_third_frame(self):
+        self.all_accounts_window_third_frame = tk.Frame(self.all_accounts_window_canvas)
+
+    def create_all_accounts_window_canvas_window(self):
+        self.all_accounts_window_canvas.create_window((0, 0), window=self.all_accounts_window_third_frame, anchor="nw")
+
+    def add_entry_to_all_accounts_window(self, account, row, refresh_token='0'):
+        entry = AccountEntry(self, self.db, self.all_accounts_window_third_frame, account, row, refresh_token)
+        self.all_accounts_window_accounts_entries.append(entry)
+
+    def create_refresh_all_accounts_window_btn(self):
+        refresh_btn = tk.Button(self.all_accounts_window_third_frame, text='Refresh', fg='grey',
+                                command=self.refresh_all_accounts_window, font=('Arial', 13, 'bold'), width=14)
+        refresh_btn.grid(row=1, column=4)
+
+    def refresh_all_accounts_window(self):
+        if self.all_accounts_window:
+            if self.all_accounts_window.winfo_exists():
+                for widget in self.all_accounts_window.winfo_children():
+                    widget.destroy()
+
+                del self.all_accounts_window_accounts_entries
+                self.all_accounts_window_accounts_entries = []
+
+                self.build_all_accounts_window_widgets()
+
+    def create_add_all_accounts_window_btn(self):
+        account = ('0', '0', '0', '0')
+        add_account_btn = tk.Button(self.all_accounts_window_third_frame, text='Add Entry', fg='grey',
+                                    command=lambda: self.add_new_entry_to_all_accounts_window(
+                                        account, (self.all_accounts_window_accounts_entries[
+                                                      -1].row + 1) if self.all_accounts_window_accounts_entries else 2),
+                                    font=('Arial', 13, 'bold'), width=14)
+        add_account_btn.grid(row=1, column=5)
+
+    def add_new_entry_to_all_accounts_window(self, account, row):
+        ebay = EbayTokenCreation()
+        self.add_entry_to_all_accounts_window(account, row, refresh_token=ebay.refresh_token)
+
+    def build_all_accounts_window_widgets(self):
+        self.all_accounts_window_accounts_entries = []
+        parameters = ['ID', 'login', 'password', 'oauth_code']
+
+        self.build_all_accounts_window_main_frame()
+        self.build_all_accounts_window_second_frame()
+        self.build_all_accounts_window_canvas()
+        self.build_all_accounts_window_scrollbar()
+        self.configure_all_accounts_window_canvas()
+        self.create_all_accounts_window_third_frame()
+        self.create_all_accounts_window_canvas_window()
+        self.create_all_labels_entries(self.all_accounts_window_third_frame, parameters)
+
+        row = 1
+        for account in self.db.get_all_accounts():
+            row += 1
+            self.add_entry_to_all_accounts_window(account, row)
+
+        self.create_refresh_all_accounts_window_btn()
+        self.create_add_all_accounts_window_btn()
 
     def build_all_products_window_main_frame(self):
         self.all_products_window_main_frame = tk.Frame(self.all_products_window)
@@ -221,6 +376,11 @@ class App:
 
     def build_all_products_window_widgets(self):
         self.all_products_window_product_entries = []
+        parameters = ['Store Name', 'SKU', 'eBay Item Number', 'EC Site', 'eBayURL', 'purchase price',
+                      'Purchase price - Match (1 or 0)', 'Invoicing charges', 'Stock Word', "Stock word-match (1 or 0)",
+                      'Watch mode (1 or 0)', 'eBay Shipping', 'Expected profit', 'commission factor',
+                      "eBay Price", 'note', 'check-logic', 'eBay automatic linkage function (1 or 0)', "eBay Qty",
+                      "search_target", "result"]
 
         self.build_all_products_window_main_frame()
         self.build_all_products_window_second_frame()
@@ -229,7 +389,7 @@ class App:
         self.configure_all_product_window_canvas()
         self.create_all_product_window_third_frame()
         self.create_all_product_window_canvas_window()
-        self.create_label_entries()
+        self.create_all_labels_entries(self.all_products_window_third_frame, parameters)
 
         row = 1
         for product in self.db.get_all_products():
@@ -259,36 +419,28 @@ class App:
 
     def add_entry_to_all_product_window(self, product, row):
         entry = ProductEntry(self, self.db, self.all_products_window_third_frame, product, row)
-        entry.create_save_button()
-        entry.create_start_btn()
-        entry.create_stop_btn()
-        entry.create_delete_btn()
         self.all_products_window_product_entries.append(entry)
 
     def create_add_all_product_window_btn(self):
         product = [[0], [0], [0], [0], [0], [0], [0], [0], [0], [0], [0], [0], [0], [0], [0], [0], [0], [0], [0], [0],
                    [0]]
-        add_all_product_window_btn = tk.Button(self.all_products_window_third_frame, text='Add Entry', fg='grey',
-                                               command=lambda: self.add_entry_to_all_product_window(product, (
-                                                       self.all_products_window_product_entries[
-                                                           -1].row + 1) if self.all_products_window_product_entries else 2),
-                                               font=('Arial', 13, 'bold'), width=14)
-        add_all_product_window_btn.grid(row=1, column=22)
+        add_product_btn = tk.Button(self.all_products_window_third_frame, text='Add Entry', fg='grey',
+                                    command=lambda: self.add_entry_to_all_product_window(product, (
+                                            self.all_products_window_product_entries[
+                                                -1].row + 1) if self.all_products_window_product_entries else 2),
+                                    font=('Arial', 13, 'bold'), width=14)
+        add_product_btn.grid(row=1, column=22)
 
     def create_refresh_all_products_window_btn(self):
         refresh_btn = tk.Button(self.all_products_window_third_frame, text='Refresh', fg='grey',
                                 command=self.refresh_all_products_window, font=('Arial', 13, 'bold'), width=14)
         refresh_btn.grid(row=1, column=21)
 
-    def create_label_entries(self):
-        parameters = ['Store Name', 'SKU', 'eBay Item Number', 'EC Site', 'eBayURL', 'purchase price',
-                      'Purchase price - Match (1 or 0)', 'Invoicing charges', 'Stock Word', "Stock word-match (1 or 0)",
-                      'Watch mode (1 or 0)', 'eBay Shipping', 'Expected profit', 'commission factor',
-                      "eBay Price", 'note', 'check-logic', 'eBay automatic linkage function (1 or 0)', "eBay Qty",
-                      "search_target", "result"]
+    @staticmethod
+    def create_all_labels_entries(frame, parameters):
         for parameter in parameters:
             tk.Label(
-                self.all_products_window_third_frame,
+                frame,
                 width=16,
                 text=parameter,
                 font=('Arial', 12, 'bold'),
@@ -299,12 +451,12 @@ class App:
 
     def create_upload_button(self):
         tk.Button(self.main_window, text='Upload', fg='grey',
-                  command=self.upload_file, font=('Arial', 18, 'bold'), ).place(relx=0.1, rely=0.3, anchor='sw')
+                  command=self.upload_file, font=('Arial', 18, 'bold'), ).place(relx=0.1, rely=0.2, anchor='sw')
 
     def create_start_button(self):
         self.btn_start = tk.Button(self.main_window, text='Start all', fg='Green',
                                    command=self.start_all, font=('Arial', 18, 'bold'))
-        self.btn_start.place(relx=0.1, rely=0.65, anchor='sw')
+        self.btn_start.place(relx=0.1, rely=0.7, anchor='sw')
 
         if not self.db.is_any_state(0):
             self.btn_start.config(state='disabled')
@@ -312,14 +464,14 @@ class App:
     def create_stop_button(self):
         self.btn_stop = tk.Button(self.main_window, text='Stop all', fg='Red',
                                   command=self.stop_all, font=('Arial', 18, 'bold'))
-        self.btn_stop.place(relx=0.1, rely=0.8, anchor='sw')
+        self.btn_stop.place(relx=0.1, rely=0.85, anchor='sw')
         if not self.db.is_any_state(1):
             self.btn_stop.config(state='disabled')
 
     def create_all_products_button(self):
-        self.btn_show_all = tk.Button(self.main_window, text='Show all products', fg='grey',
-                                      command=self.create_all_products_window, font=('Arial', 18, 'bold'), )
-        self.btn_show_all.place(relx=0.1, rely=0.5, anchor='sw')
+        self.btn_show_all_products = tk.Button(self.main_window, text='Show all products', fg='grey',
+                                               command=self.create_all_products_window, font=('Arial', 18, 'bold'), )
+        self.btn_show_all_products.place(relx=0.1, rely=0.55, anchor='sw')
 
     def create_login_label(self):
         tk.Label(self.login_window,
@@ -427,6 +579,12 @@ class DataBaseInterface:
             print(ex)
 
     @make_query_wrapper
+    def get_all_accounts(self):
+        query = """SELECT * FROM accounts"""
+        self.cursor.execute(query)
+        return self.cursor.fetchall()
+
+    @make_query_wrapper
     def get_user_ids(self, login, password):
         query_id = f"""SELECT ID FROM accounts WHERE login = '{login}' AND password = '{password}'"""
         self.cursor.execute(query_id)
@@ -488,6 +646,12 @@ class DataBaseInterface:
         '{row[16]}','{row[17]}','{row[18]}','0','1')"""
         self.cursor.execute(query_add_entry)
 
+    @make_query_wrapper
+    def add_account(self, row):
+        query_add_entry = f"""
+            INSERT INTO accounts VALUES ('{row[0]}','{row[1]}','{row[2]}','{row[3]}')"""
+        self.cursor.execute(query_add_entry)
+
     # @make_query_wrapper
     # def edit_entry(self, row, ebay_id):
     #
@@ -533,6 +697,11 @@ class DataBaseInterface:
     @make_query_wrapper
     def del_product(self, ebay_id):
         query = f"""DELETE FROM products WHERE ebay_id = '{ebay_id}' """
+        self.cursor.execute(query)
+
+    @make_query_wrapper
+    def del_account(self, identification):
+        query = f"""DELETE FROM accounts WHERE ID = '{identification}' """
         self.cursor.execute(query)
 
     @make_query_wrapper

@@ -1,0 +1,2 @@
+Store Name,SKU,eBay Item Number,EC Site,eBayURL,purchase price,Purchase price - Match (1 or 0),Invoicing charges,Stock Word,Stock word-match (1 or 0),Watch mode (ON:1 or OFF:0),eBay Shipping,Expected profit,commission factor,eBay Price,note,check-logic,eBay automatic linkage function (ON:1 or OFF:0),eBay Qty
+akido,20220722yamanishi1,234234234,https://www.amazon.co.jp/dp/B082XG61W5/ref=olp-opf-redir?aod=2&ie=UTF8&condition=ALL&th=2,https://www.ebay.com/itm/224815686348,400,1,50,stockingsome,1,1,30,300,0.93,400,notesome,1,1,4
