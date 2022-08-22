@@ -30,23 +30,29 @@ while True:
             result = product[20]
             ebay_qt = product[18]
             ebay_id = product[2]
+            ebay_linkage = product[17]
             ecommerce_url = product[3]
             stock_word = product[8]
             user_id = product[0]
+            try:
+                current_time = int(time.time())
 
-            current_time = int(time.time())
+                availability, price = websites[
+                    f"{''.join(key for key in websites.keys() if ecommerce_url.startswith(key))}"](
+                    ecommerce_url, stock_word)
 
-            availability, price = websites[
-                f"{''.join(key for key in websites.keys() if ecommerce_url.startswith(key))}"](
-                ecommerce_url, stock_word)
+                db.edit_p_price_by_ebay_id(ebay_id, price if price != '0' else product[5])
+                db.edit_availability_by_ebay_id(ebay_id, availability)
 
-            db.edit_p_price_by_ebay_id(ebay_id, price if price != '0' else product[5])
-            db.edit_availability_by_ebay_id(ebay_id, availability)
-
-            token = refresh_token(db.get_token_by_user_id(user_id))
-            if (not availability) and product[17] == '1' and token != '0' and result == '1':
-                set_item_quantity(ebay_id, 0, token)
-            if availability and product[17] == '1' and token != '0' and result == '0':
-                set_item_quantity(ebay_id, ebay_qt, token)
+                token = refresh_token(db.get_token_by_user_id(user_id))
+                print(token)
+                if ebay_linkage == '1':
+                    if token != '0':
+                        if (not availability) and result == '1':
+                            set_item_quantity(ebay_id, 0, token)
+                        if availability and result == '0':
+                            set_item_quantity(ebay_id, ebay_qt, token)
+            except Exception or AttributeError:
+                pass
             time.sleep(5)
     time.sleep(cur_time + 43200 - time.time())
