@@ -1,8 +1,8 @@
 import tkinter as tk
 import webbrowser
 from urllib.parse import unquote
-import requests
 import base64
+import requests
 
 
 class EbayTokenCreation:

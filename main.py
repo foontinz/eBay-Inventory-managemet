@@ -587,15 +587,15 @@ class DataBaseInterface:
         return ids
 
     @make_query_wrapper
-    def is_any_state(self, state: int):
-        query_running = f"""SELECT * FROM products WHERE search_target = {state}"""
-        self.cursor.execute(query_running)
-        return any(self.cursor.fetchall())
-
-    @make_query_wrapper
     def is_entry_added(self, ebay_id):
         query = f"""SELECT * FROM products WHERE ebay_id = '{ebay_id}'"""
         self.cursor.execute(query)
+        return any(self.cursor.fetchall())
+
+    @make_query_wrapper
+    def is_any_state(self, state: int):
+        query_running = f"""SELECT * FROM products WHERE search_target = {state}"""
+        self.cursor.execute(query_running)
         return any(self.cursor.fetchall())
 
     @make_query_wrapper

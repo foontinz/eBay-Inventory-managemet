@@ -1,4 +1,3 @@
-import pprint
 from seleniumwire import webdriver
 import bs4
 import requests

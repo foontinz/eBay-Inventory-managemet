@@ -1,7 +1,7 @@
-import time
 from main import DataBaseInterface
 from ebay_utils import refresh_token, set_item_quantity
 from scrape_frameworks import Scraper
+import time
 
 db = DataBaseInterface()
 scrape_core = Scraper()
