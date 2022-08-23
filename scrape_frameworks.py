@@ -20,7 +20,7 @@ class Scraper:
             res = requests.get(link, headers=headers, params=querystring)
         else:
             res = requests.get(link, headers=headers)
-        print(res)
+
         if res.status_code == 200 or attempts > 3:
             return res
         else:
@@ -68,6 +68,7 @@ class Scraper:
                 for item in request.headers.items():
                     if item[0] == 'dpop':
                         dpop = item[1]
+
         try:
             headers = {
                 "authority": "api.mercari.jp",

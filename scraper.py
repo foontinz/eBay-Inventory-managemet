@@ -26,14 +26,14 @@ websites = {
 while True:
     cur_time = time.time()
     for product in db.get_all_products():
-        if product[19]:
-            result = product[20]
-            ebay_qt = product[18]
-            ebay_id = product[2]
-            ebay_linkage = product[17]
-            ecommerce_url = product[3]
-            stock_word = product[8]
-            user_id = product[0]
+        if product[1]:
+            result = product[0]
+            ebay_qt = product[20]
+            ebay_id = product[4]
+            ebay_linkage = product[19]
+            ecommerce_url = product[5]
+            stock_word = product[10]
+            user_id = product[2]
             try:
                 current_time = int(time.time())
 
@@ -45,7 +45,7 @@ while True:
                 db.edit_availability_by_ebay_id(ebay_id, availability)
 
                 token = refresh_token(db.get_token_by_user_id(user_id))
-                print(token)
+                exit()
                 if ebay_linkage == '1':
                     if token != '0':
                         if (not availability) and result == '1':

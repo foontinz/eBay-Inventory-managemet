@@ -70,11 +70,11 @@ class ProductWindow:
 
     def build_widgets(self):
         self.product_entries = []
-        parameters = ['Store Name', 'SKU', 'eBay Item Number', 'EC Site', 'eBayURL', 'purchase price',
-                      'Purchase price - Match (1 or 0)', 'Invoicing charges', 'Stock Word', "Stock word-match (1 or 0)",
-                      'Watch mode (1 or 0)', 'eBay Shipping', 'Expected profit', 'commission factor',
-                      "eBay Price", 'note', 'check-logic', 'eBay automatic linkage function (1 or 0)', "eBay Qty",
-                      "search_target", "result"]
+        parameters = ["result", "search_target", 'Store Name', 'SKU', 'eBay Item Number', 'EC Site', 'eBayURL',
+                      'purchase price', 'purchase price - Match (1 or 0)', 'Invoicing charges', 'Stock Word',
+                      "Stock word-match (1 or 0)", 'Watch mode (1 or 0)', 'eBay Shipping', 'Expected profit',
+                      'commission factor', "eBay Price", 'note', 'check-logic',
+                      'eBay automatic linkage function (1 or 0)', "eBay Qty"]
 
         self.build_main_frame()
         self.build_second_frame()
@@ -217,8 +217,8 @@ class ProductEntry(Entry):
     def __init__(self, product_window, app: "App", db: 'DataBaseInterface', frame, parameters, row):
         super().__init__(app, db, frame, parameters, row)
 
-        self._ebay_id = parameters[2]
-        self.state = parameters[19]
+        self._ebay_id = parameters[4]
+        self.state = parameters[1]
         self.product_window = product_window
 
         self.create_save_btn(21)
@@ -510,8 +510,10 @@ class App:
             datareader.__next__()
             try:
                 for row in datareader:
-                    if len(row) == 17:
-                        if not self.db.is_entry_added(row[2]):
+                    if len(row) == 19:
+                        print(312)
+                        if not self.db.is_entry_added(row[4]):
+                            print(123)
                             self.db.add_product(row)
                 self.refresh_all_products_windows()
                 if self.main_window:
@@ -624,9 +626,9 @@ class DataBaseInterface:
     @make_query_wrapper
     def add_product(self, row):
         query_add_entry = f"""
-        INSERT INTO products VALUES ('{row[0]}','{row[1]}','{row[2]}','{row[3]}','{row[4]}','{row[5]}','{row[6]}',
-        '{row[7]}','{row[8]}','{row[9]}','{row[10]}','{row[11]}','{row[12]}','{row[13]}','{row[14]}','{row[15]}',
-        '{row[16]}','{row[17]}','{row[18]}','0','1')"""
+        INSERT INTO products VALUES ('1','0','{row[0]}','{row[1]}','{row[2]}','{row[3]}','{row[4]}','{row[5]}',
+        '{row[6]}','{row[7]}','{row[8]}','{row[9]}','{row[10]}','{row[11]}','{row[12]}','{row[13]}','{row[14]}',
+        '{row[15]}','{row[16]}','{row[17]}','{row[18]}')"""
         self.cursor.execute(query_add_entry)
 
     @make_query_wrapper
