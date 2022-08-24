@@ -1,5 +1,6 @@
 import csv
 import time
+import decouple
 import tkinter as tk
 import mysql.connector
 from tkinter import filedialog
@@ -84,7 +85,6 @@ class ProductWindow:
         self.build_third_frame()
         self.build_canvas_window()
         self.app.create_all_labels_entries(self.third_frame, parameters)
-
         row = 1
         for product in self.db.get_all_products_by_user(self.user_id):
             row += 1
@@ -511,9 +511,7 @@ class App:
             try:
                 for row in datareader:
                     if len(row) == 19:
-                        print(312)
                         if not self.db.is_entry_added(row[4]):
-                            print(123)
                             self.db.add_product(row)
                 self.refresh_all_products_windows()
                 if self.main_window:
@@ -545,9 +543,9 @@ class DataBaseInterface:
 
     def open_connection(self):
         self.connection = mysql.connector.connect(
-            host='162.243.163.205',
+            host=decouple.config("IP"),
             user='user',
-            password='akidoDB#12a',
+            password=decouple.config("PASSWORD"),
             database='dropship'
 
         )

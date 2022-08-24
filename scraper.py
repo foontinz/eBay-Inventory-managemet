@@ -45,7 +45,6 @@ while True:
                 db.edit_availability_by_ebay_id(ebay_id, availability)
 
                 token = refresh_token(db.get_token_by_user_id(user_id))
-                exit()
                 if ebay_linkage == '1':
                     if token != '0':
                         if (not availability) and result == '1':
