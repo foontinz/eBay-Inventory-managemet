@@ -17,11 +17,12 @@ def create_window(height, width, title, resizable=False):
 
 
 class ProductWindow:
-    def __init__(self, account_entry, user_id, app: 'App', db: 'DataBaseInterface'):
-        self.user_id = user_id
+    def __init__(self, app: 'App', db: 'DataBaseInterface', account_entry=None):
+        self.account_entry = account_entry
+        self.account_id = account_entry.account_id if account_entry else None
+
         self.db = db
         self.app = app
-        self.account_entry = account_entry
         self.product_entries = []
         self.main_frame = None
         self.second_frame = None
@@ -31,13 +32,16 @@ class ProductWindow:
         self.scrollbar_x = None
         self.scrollbar_y = None
 
-        self.products_window = create_window(720, 1280, f'Products {self.user_id}', resizable=True)
+        self.products_window = create_window(720, 1280, f'Products {self.account_id}', resizable=True)
         self.products_window.protocol("WM_DELETE_WINDOW", self.on_closing_event)
         self.build_widgets()
 
     def on_closing_event(self):
         self.products_window.destroy()
-        self.account_entry.products_window = None
+        if self.account_entry:
+            self.account_entry.products_window = None
+        if not self.account_entry:
+            self.app.all_products_window = None
 
     def build_main_frame(self):
         self.main_frame = tk.Frame(self.products_window)
@@ -86,7 +90,7 @@ class ProductWindow:
         self.build_canvas_window()
         self.app.create_all_labels_entries(self.third_frame, parameters)
         row = 1
-        for product in self.db.get_all_products_by_user(self.user_id):
+        for product in self.db.get_all_products_by_account(self.account_id):
             row += 1
             self.add_entry(product, row)
 
@@ -147,7 +151,7 @@ class Entry:
             background=bg_color,
             fg='Black',
             relief=tk.RAISED)
-        entry.insert(1, value)
+        entry.insert(1, value if value else 0)
         entry.grid(column=column, row=self.row)
         return entry
 
@@ -185,32 +189,37 @@ class AccountEntry(Entry):
 
         super().__init__(app, db, frame, parameters, row)
         self.products_window = None
-        self._id = parameters[0]
-        self.create_save_btn(4)
-        self.create_delete_btn(5)
+        self.account_id = parameters[0]
+        self.create_save_btn(2)
+        self.create_delete_btn(3)
         self.create_products_btn()
         self.create_upload_button()
 
     def save(self):
-        self.db.del_account(self._id)
+        self.account_id = self.get_all_entries_values()[0]
+        self.db.del_account(self.account_id)
+        self.db.del_enrollment(self.app.user_id, self.account_id)
         self.db.add_account(self.get_all_entries_values())
+        self.db.add_enrollment(self.app.user_id, self.account_id)
 
     def delete(self):
         if tk.messagebox.askyesno('Check', 'Delete?'):
-            self.db.del_account(self._id)
+            # self.db.del_account(self.account_id)
+            self.db.del_enrollment(self.app.user_id, self.account_id)
             self.app.refresh_all_accounts_window()
 
     def create_products(self):
         if not self.products_window:
-            self.products_window = ProductWindow(self, self._id, self.app, self.db)
+            self.products_window = ProductWindow(self.app, self.db, self)
 
     def create_products_btn(self):
         tk.Button(self.frame, text='Products', fg='grey', width=14,
-                  command=self.create_products, font=('Arial', 13, 'bold')).grid(row=self.row, column=6)
+                  command=self.create_products, font=('Arial', 13, 'bold')).grid(row=self.row, column=4)
 
     def create_upload_button(self):
         tk.Button(self.frame, text='Upload', fg='grey', width=14,
-                  command=self.app.upload_file, font=('Arial', 13, 'bold'), ).grid(row=self.row, column=7)
+                  command=lambda: self.app.upload_file(self.account_id), font=('Arial', 13, 'bold'), ).grid(
+            row=self.row, column=5)
 
 
 class ProductEntry(Entry):
@@ -234,7 +243,7 @@ class ProductEntry(Entry):
         start_button = tk.Button(self.frame, text='Start', fg='green', width=14,
                                  command=self.start_product, font=('Arial', 13, 'bold'))
         start_button.grid(row=self.row, column=22)
-        if self.parameters[19] == '1':
+        if self.parameters[1] == '1':
             start_button.config(state='disabled')
 
     def start_product(self):
@@ -246,7 +255,7 @@ class ProductEntry(Entry):
         stop_button = tk.Button(self.frame, text='Stop', fg='red', width=14,
                                 command=self.stop_product, font=('Arial', 13, 'bold'))
         stop_button.grid(row=self.row, column=23)
-        if self.parameters[19] != '1':
+        if self.parameters[1] != '1':
             stop_button.config(state='disabled')
 
     def stop_product(self):
@@ -269,7 +278,7 @@ class App:
         self.login_window = None
         self.main_window = None
         self.all_accounts_window = None
-
+        self.all_products_window = None
         self.login_input = None
         self.pass_input = None
 
@@ -286,7 +295,7 @@ class App:
         self.all_accounts_window_scrollbar_x = None
         self.all_accounts_window_accounts_entries = []
 
-        self.user_ids = None
+        self.user_id = None
 
         self.create_login_window()
 
@@ -328,7 +337,7 @@ class App:
 
     def create_main_window(self):
         if not self.main_window:
-            self.main_window = create_window(150, 280, 'eBay Tool')
+            self.main_window = create_window(200, 280, 'eBay Tool')
             self.main_window.iconphoto(False, tk.PhotoImage(file='888848.png'))
             self.build_main_window_widgets()
             self.main_window.protocol("WM_DELETE_WINDOW", lambda: self.main_window.destroy())
@@ -344,15 +353,25 @@ class App:
         self.create_stop_button()
         self.create_start_button()
         self.create_all_accounts_button()
+        self.create_all_products_button()
 
     def create_all_accounts_button(self):
         self.btn_show_all_accounts = tk.Button(self.main_window, text='Show all accounts', fg='grey',
                                                command=self.create_all_accounts_window, font=('Arial', 18, 'bold'), )
-        self.btn_show_all_accounts.place(relx=0.07, rely=0.65)
+        self.btn_show_all_accounts.place(relx=0.07, rely=0.45)
+
+    def create_all_products_button(self):
+        self.btn_show_all_accounts = tk.Button(self.main_window, text='Show all products', fg='grey',
+                                               command=self.create_all_products_window, font=('Arial', 18, 'bold'), )
+        self.btn_show_all_accounts.place(relx=0.07, rely=0.7)
+
+    def create_all_products_window(self):
+        if not self.all_products_window:
+            self.all_products_window = ProductWindow(self, self.db)
 
     def create_all_accounts_window(self):
         if not self.all_accounts_window:
-            self.all_accounts_window = create_window(720, 1280, 'All Accounts', resizable=True)
+            self.all_accounts_window = create_window(720, 1100, 'All Accounts', resizable=True)
             self.build_all_accounts_window_widgets()
             self.all_accounts_window.protocol("WM_DELETE_WINDOW", self.on_all_accounts_window_closing_event)
 
@@ -400,7 +419,7 @@ class App:
     def create_refresh_all_accounts_window_btn(self):
         refresh_btn = tk.Button(self.all_accounts_window_third_frame, text='Refresh', fg='grey',
                                 command=self.refresh_all_accounts_window, font=('Arial', 13, 'bold'), width=14)
-        refresh_btn.grid(row=1, column=4)
+        refresh_btn.grid(row=1, column=2)
 
     def refresh_all_accounts_window(self):
         if self.all_accounts_window:
@@ -414,13 +433,13 @@ class App:
                 self.build_all_accounts_window_widgets()
 
     def create_add_all_accounts_window_btn(self):
-        account = ('0', '0', '0', '0')
+        account = ('0', '0')
         add_account_btn = tk.Button(self.all_accounts_window_third_frame, text='Add account', fg='grey',
                                     command=lambda: self.add_new_entry_to_all_accounts_window(
                                         account, (self.all_accounts_window_accounts_entries[
                                                       -1].row + 1) if self.all_accounts_window_accounts_entries else 2),
                                     font=('Arial', 13, 'bold'), width=14)
-        add_account_btn.grid(row=1, column=5)
+        add_account_btn.grid(row=1, column=3)
 
     def add_new_entry_to_all_accounts_window(self, account, row):
         ebay = EbayTokenCreation()
@@ -428,7 +447,7 @@ class App:
 
     def build_all_accounts_window_widgets(self):
         self.all_accounts_window_accounts_entries = []
-        parameters = ['ID', 'login', 'password', 'oauth_code']
+        parameters = ['ID', 'oauth_code']
 
         self.build_all_accounts_window_main_frame()
         self.build_all_accounts_window_second_frame()
@@ -438,9 +457,10 @@ class App:
         self.create_all_accounts_window_third_frame()
         self.create_all_accounts_window_canvas_window()
         self.create_all_labels_entries(self.all_accounts_window_third_frame, parameters)
-
         row = 1
-        for account in self.db.get_all_accounts():
+        for account_id in self.db.get_all_account_ids_by_user_id(self.user_id):
+            account_id = account_id[0]
+            account = self.db.get_account_by_id(account_id)
             row += 1
             self.add_entry_to_all_accounts_window(account, row)
 
@@ -457,7 +477,7 @@ class App:
     def create_start_button(self):
         self.btn_start = tk.Button(self.main_window, text='Start all', fg='Green',
                                    command=self.start_all, font=('Arial', 18, 'bold'))
-        self.btn_start.place(relx=0.08, rely=0.5, anchor='sw')
+        self.btn_start.place(relx=0.08, rely=0.35, anchor='sw')
 
         if not self.db.is_any_state(0):
             self.btn_start.config(state='disabled')
@@ -465,7 +485,7 @@ class App:
     def create_stop_button(self):
         self.btn_stop = tk.Button(self.main_window, text='Stop all', fg='Red',
                                   command=self.stop_all, font=('Arial', 18, 'bold'))
-        self.btn_stop.place(relx=0.5, rely=0.5, anchor='sw')
+        self.btn_stop.place(relx=0.5, rely=0.35, anchor='sw')
         if not self.db.is_any_state(1):
             self.btn_stop.config(state='disabled')
 
@@ -491,31 +511,32 @@ class App:
 
     def successful_login(self):
         if self.db.check_login_password(self.login_input.get().strip(), self.pass_input.get().strip()):
-            self.user_ids = self.db.get_user_ids(self.login_input.get().strip(), self.pass_input.get().strip())
+            self.user_id = self.db.get_user_id(self.login_input.get().strip(), self.pass_input.get().strip())
             self.login_window.destroy()
             self.create_main_window()
 
-    def upload_file(self):
+    def upload_file(self, account_id=None):
+
         filepath = filedialog.askopenfilename()
 
         if not filepath:
             return
-
         if filepath[-3:] != "csv":
             messagebox.showwarning("Wrong format", 'You can use only CSV format')
             return
 
-        with open(filepath, 'r', encoding='utf-8') as csvfile:
+        with open(filepath, 'r', encoding='cp932') as csvfile:
             datareader = csv.reader(csvfile)
             datareader.__next__()
             try:
                 for row in datareader:
                     if len(row) == 19:
+                        if not account_id:
+                            account_id = row[0]
                         if not self.db.is_entry_added(row[4]):
-                            self.db.add_product(row)
+                            self.db.add_product(row, account_id)
                 self.refresh_all_products_windows()
-                if self.main_window:
-                    self.refresh_main_window()
+                self.refresh_main_window()
             except Exception as ex:
                 messagebox.showwarning("Error", f'Error: {ex}')
                 print(ex)
@@ -558,7 +579,7 @@ class DataBaseInterface:
 
     @make_query_wrapper
     def check_login_password(self, login, password):
-        query_login = f"""SELECT password FROM accounts WHERE login = '{login}'"""
+        query_login = f"""SELECT password FROM users WHERE login = '{login}'"""
         try:
             self.cursor.execute(query_login)
             db_password = self.cursor.fetchone()
@@ -580,11 +601,26 @@ class DataBaseInterface:
         return self.cursor.fetchall()
 
     @make_query_wrapper
-    def get_user_ids(self, login, password):
-        query_id = f"""SELECT ID FROM accounts WHERE login = '{login}' AND password = '{password}'"""
+    def get_all_account_ids_by_user_id(self, user_id):
+        query = f"""SELECT account_id FROM UsersAccountsEnrollments WHERE user_id = '{user_id}'"""
+        self.cursor.execute(query)
+        return self.cursor.fetchall()
+
+    @make_query_wrapper
+    def get_account_by_id(self, account_id):
+        query = f"""SELECT * FROM accounts WHERE account_id = '{account_id}'"""
+        self.cursor.execute(query)
+        account = self.cursor.fetchone()
+        _ = self.cursor.fetchall()
+        return account
+
+    @make_query_wrapper
+    def get_user_id(self, login, password):
+        query_id = f"""SELECT user_id FROM users WHERE login = '{login}' AND password = '{password}'"""
         self.cursor.execute(query_id)
-        ids = self.cursor.fetchall()
-        return ids
+        user_id = self.cursor.fetchone()
+        _ = self.cursor.fetchall()
+        return user_id[0]
 
     @make_query_wrapper
     def is_entry_added(self, ebay_id):
@@ -607,24 +643,17 @@ class DataBaseInterface:
         return notes[0]
 
     @make_query_wrapper
-    def get_token_by_user_id(self, user_id):
-        query_get_token = f"""SELECT oauth_code FROM accounts WHERE ID = '{user_id}'"""
+    def get_token_by_account_id(self, account_id):
+        query_get_token = f"""SELECT oauth_code FROM accounts WHERE account_id = '{account_id}'"""
         self.cursor.execute(query_get_token)
         token = self.cursor.fetchone()
         _ = self.cursor.fetchall()
         return token
 
     @make_query_wrapper
-    def add_check_entry(self, ebay_id, checked_at, ecommerce_price, available):
-        query_add_check_entry = f"""
-        INSERT INTO products_history VALUES ('{ebay_id}','{available}','{ecommerce_price}',{checked_at})"""
-
-        self.cursor.execute(query_add_check_entry)
-
-    @make_query_wrapper
-    def add_product(self, row):
+    def add_product(self, row, account_id='0'):
         query_add_entry = f"""
-        INSERT INTO products VALUES ('1','0','{row[0]}','{row[1]}','{row[2]}','{row[3]}','{row[4]}','{row[5]}',
+            INSERT INTO products VALUES ('1','0','{account_id}','{row[1]}','{row[2]}','{row[3]}','{row[4]}','{row[5]}',
         '{row[6]}','{row[7]}','{row[8]}','{row[9]}','{row[10]}','{row[11]}','{row[12]}','{row[13]}','{row[14]}',
         '{row[15]}','{row[16]}','{row[17]}','{row[18]}')"""
         self.cursor.execute(query_add_entry)
@@ -632,7 +661,13 @@ class DataBaseInterface:
     @make_query_wrapper
     def add_account(self, row):
         query_add_entry = f"""
-            INSERT INTO accounts VALUES ('{row[0]}','{row[1]}','{row[2]}','{row[3]}')"""
+            INSERT INTO accounts VALUES ('{row[0]}','{row[1]}')"""
+        self.cursor.execute(query_add_entry)
+
+    @make_query_wrapper
+    def add_enrollment(self, user_id, account_id):
+        query_add_entry = f"""
+               INSERT INTO UsersAccountsEnrollments (user_id, account_id) VALUES ('{user_id}','{account_id}')"""
         self.cursor.execute(query_add_entry)
 
     @make_query_wrapper
@@ -642,13 +677,16 @@ class DataBaseInterface:
         return self.cursor.fetchall()
 
     @make_query_wrapper
-    def get_all_products_by_user(self, user_id):
-        query = f"""SELECT * FROM products WHERE user_id = '{user_id}'"""
+    def get_all_products_by_account(self, account_id):
+        if account_id:
+            query = f"""SELECT * FROM products WHERE account_id = '{account_id}'"""
+        else:
+            query = f"""SELECT * FROM products"""
         self.cursor.execute(query)
         return self.cursor.fetchall()
 
     @make_query_wrapper
-    def get_availability_by_user_id(self, ebay_id):
+    def get_availability_by_ebay_id(self, ebay_id):
         query = f"""
         SELECT avaliable 
         FROM products_history 
@@ -676,8 +714,13 @@ class DataBaseInterface:
         self.cursor.execute(query)
 
     @make_query_wrapper
-    def del_account(self, identification):
-        query = f"""DELETE FROM accounts WHERE ID = '{identification}' """
+    def del_account(self, account_id):
+        query = f"""DELETE FROM accounts WHERE account_id = '{account_id}' """
+        self.cursor.execute(query)
+
+    @make_query_wrapper
+    def del_enrollment(self, user_id, account_id):
+        query = f"""DELETE FROM UsersAccountsEnrollments WHERE user_id = '{user_id}' AND account_id = '{account_id}'"""
         self.cursor.execute(query)
 
     @make_query_wrapper

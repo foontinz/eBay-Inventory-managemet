@@ -33,7 +33,7 @@ while True:
             ebay_linkage = product[19]
             ecommerce_url = product[5]
             stock_word = product[10]
-            user_id = product[2]
+            account_id = product[2]
             try:
                 current_time = int(time.time())
 
@@ -41,10 +41,10 @@ while True:
                     f"{''.join(key for key in websites.keys() if ecommerce_url.startswith(key))}"](
                     ecommerce_url, stock_word)
 
-                db.edit_p_price_by_ebay_id(ebay_id, price if price != '0' else product[5])
+                db.edit_p_price_by_ebay_id(ebay_id, price if price != '0' else product[7])
                 db.edit_availability_by_ebay_id(ebay_id, availability)
 
-                token = refresh_token(db.get_token_by_user_id(user_id))
+                token = refresh_token(db.get_token_by_account_id(account_id))
                 if ebay_linkage == '1':
                     if token != '0':
                         if (not availability) and result == '1':
