@@ -1,3 +1,5 @@
+import pprint
+
 from seleniumwire import webdriver
 import bs4
 import requests
@@ -85,6 +87,7 @@ class Scraper:
             link = 'https://api.mercari.jp/items/get'
             json_dict = self.make_request(link, headers, querystring).json()
             price = json_dict['data']['price']
+            pprint.pprint(json_dict)
             availability = json_dict['data']['status'] == 'on_sale'
         except AttributeError or Exception:
             return True, 0
@@ -213,4 +216,4 @@ class Scraper:
         return availability, price
 
 # scrapy = Scraper()
-# print(scrapy.scraper_lashinbang("https://shop.lashinbang.com/products/detail/2912770", 'stck'))
+# print(scrapy.scraper_mercari("https://jp.mercari.com/item/m83026209368", 'stck'))

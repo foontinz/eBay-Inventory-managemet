@@ -26,8 +26,10 @@ websites = {
 while True:
     cur_time = time.time()
     for product in db.get_all_products():
-        if product[1]:
-            result = product[0]
+        print("start ", product)
+
+        if product[0]:
+            result = product[1]
             ebay_qt = product[20]
             ebay_id = product[4]
             ebay_linkage = product[19]
@@ -36,7 +38,7 @@ while True:
             account_id = product[2]
             try:
                 current_time = int(time.time())
-
+                print("start ", ebay_id)
                 availability, price = websites[
                     f"{''.join(key for key in websites.keys() if ecommerce_url.startswith(key))}"](
                     ecommerce_url, stock_word)
@@ -48,9 +50,12 @@ while True:
                 if ebay_linkage == '1':
                     if token != '0':
                         if (not availability) and result == '1':
-                            set_item_quantity(ebay_id, 0, token)
+                            print(ebay_id, "set item 0")
+                            # set_item_quantity(ebay_id, 0, token)
                         if availability and result == '0':
-                            set_item_quantity(ebay_id, ebay_qt, token)
+                            print(ebay_id, f"set item {ebay_qt}")
+
+                            # set_item_quantity(ebay_id, ebay_qt, token)
             except Exception or AttributeError:
                 pass
             time.sleep(5)

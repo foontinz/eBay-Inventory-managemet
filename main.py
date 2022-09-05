@@ -75,7 +75,7 @@ class ProductWindow:
 
     def build_widgets(self):
         self.product_entries = []
-        parameters = ["result", "search_target", 'Store Name', 'SKU', 'eBay Item Number', 'EC Site', 'eBayURL',
+        parameters = ["search_target", "result", 'Store Name', 'SKU', 'eBay Item Number', 'EC Site', 'eBayURL',
                       'purchase price', 'purchase price - Match (1 or 0)', 'Invoicing charges', 'Stock Word',
                       "Stock word-match (1 or 0)", 'Watch mode (1 or 0)', 'eBay Shipping', 'Expected profit',
                       'commission factor', "eBay Price", 'note', 'check-logic',
@@ -156,7 +156,7 @@ class Entry:
         return entry
 
     def get_all_entries_values(self):
-        return [entry.get() for entry in self.entries_collection]
+        return [entry.get().strip() for entry in self.entries_collection]
 
     def create_save_btn(self, column):
         self.save_button = tk.Button(self.frame, text='Save', fg='grey', width=14,
@@ -236,6 +236,7 @@ class ProductEntry(Entry):
         self.create_stop_btn()
 
     def save(self):
+        self._ebay_id = self.get_all_entries_values()[4].strip()
         self.db.del_product(self._ebay_id)
         self.db.add_product(self.get_all_entries_values())
 
@@ -555,6 +556,9 @@ class DataBaseInterface:
                 res = func(self, *args)
                 self.close_connection()
                 return res
+            except mysql.connector.Error as ex:
+                print(ex)
+
             except Exception as ex:
                 time.sleep(1)
                 print(ex)
@@ -576,6 +580,12 @@ class DataBaseInterface:
         self.connection.commit()
         self.cursor.close()
         self.connection.close()
+
+    @make_query_wrapper
+    def get_all_products_ebay_ids(self):
+        query = """SELECT ebay_id FROM products"""
+        self.cursor.execute(query)
+        return self.cursor.fetchall()
 
     @make_query_wrapper
     def check_login_password(self, login, password):
@@ -651,11 +661,12 @@ class DataBaseInterface:
         return token
 
     @make_query_wrapper
-    def add_product(self, row, account_id='0'):
+    def add_product(self, row, account_id=None):
+        print(row)
         query_add_entry = f"""
-            INSERT INTO products VALUES ('1','0','{account_id}','{row[1]}','{row[2]}','{row[3]}','{row[4]}','{row[5]}',
-        '{row[6]}','{row[7]}','{row[8]}','{row[9]}','{row[10]}','{row[11]}','{row[12]}','{row[13]}','{row[14]}',
-        '{row[15]}','{row[16]}','{row[17]}','{row[18]}')"""
+            INSERT INTO products VALUES ('0','1','{account_id if account_id else row[2]}','{row[3]}','{row[4]}',
+        '{row[5]}','{row[6]}','{row[7]}','{row[8]}','{row[9]}','{row[10]}','{row[11]}','{row[12]}','{row[13]}',
+        '{row[14]}','{row[15]}','{row[16]}','{row[17]}','{row[18]}','{row[19]}','{row[20]}')"""
         self.cursor.execute(query_add_entry)
 
     @make_query_wrapper
